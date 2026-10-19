@@ -36,7 +36,7 @@ jobs:
             torchvision: "0.29.1"
             comfyui: "v0.42.1"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 90  # the Windows runners are up to twice as slow on some runs (one took 40 min for the tests)
     defaults:
       run:
         shell: pwsh
@@ -99,7 +99,7 @@ jobs:
           DBS_REQUIRE_REFERENCES: "1"
         run: |
           Set-Location ComfyUI-DBS
-          python -m pytest tests -q -rs -p no:cacheprovider -W ignore::DeprecationWarning -W ignore::FutureWarning
+          python -m pytest tests -q -rs -p no:cacheprovider -W ignore::DeprecationWarning -W ignore::FutureWarning --durations=10
 
       - name: Real ComfyUI queue on CPU (real models)
         run: |

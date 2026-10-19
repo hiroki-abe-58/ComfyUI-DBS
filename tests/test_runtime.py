@@ -1,5 +1,7 @@
 """The pack's runtime with the real models on the CPU: loading, shapes and rates, the per-channel and batch handling, resampling,
-progress, and the errors for inputs the models cannot take."""
+progress, and the errors for inputs the models cannot take. Tests of the handling around the model use DBS-BSRNN, whose 3 s window
+takes the short test signals in one unpadded pass (DBS-TIGER pads them to 6 s); the window counting uses a stand-in model, since
+the window loop does not depend on the weights (tests/test_parity.py runs both real models over several windows)."""
 
 import json
 import math
@@ -23,6 +25,17 @@ def _audio(x, rate=44100):
 
 def _model(models_dir, name="DBS-TIGER-DnR"):
     return runtime.load(str(models_dir / name), name, "cpu")
+
+
+class _ThreeThirds(torch.nn.Module):
+    """Stand-in model: three stems of a third of the input each, in the released models' output layout [1, 3, samples]."""
+
+    def __init__(self):
+        super().__init__()
+        self.scale = torch.nn.Parameter(torch.tensor(1 / 3))
+
+    def forward(self, x):
+        return (x * self.scale).expand(-1, 3, -1)
 
 
 def test_load_is_cached_per_folder_name_and_device(models_dir):
@@ -55,7 +68,8 @@ def test_stems_shapes_and_sum(models_dir, name):
 
 def test_each_channel_keeps_the_channels(models_dir):
     x = audio.soundtrack(2.5, seed=2)
-    music, sfx, speech, report = runtime.separate_audio(_model(models_dir), "DBS-TIGER-DnR", _audio(x), "each channel")
+    name = "DBS-BSRNN-DnR"
+    music, sfx, speech, report = runtime.separate_audio(_model(models_dir, name), name, _audio(x), "each channel")
     assert music["waveform"].shape == (1, 2, x.shape[0]) and report["signals_per_item"] == 2
     total = (music["waveform"] + sfx["waveform"] + speech["waveform"])[0]
     assert torch.allclose(total, torch.from_numpy(x.T.copy()), atol=1e-5)
@@ -63,10 +77,11 @@ def test_each_channel_keeps_the_channels(models_dir):
 
 def test_batch_items_are_separated_on_their_own(models_dir):
     a, b = audio.soundtrack(2.0, seed=3), audio.soundtrack(2.0, seed=4)
-    model = _model(models_dir)
-    both = runtime.separate_audio(model, "DBS-TIGER-DnR", _audio([a, b]))[:3]
-    one = runtime.separate_audio(model, "DBS-TIGER-DnR", _audio(a))[:3]
-    two = runtime.separate_audio(model, "DBS-TIGER-DnR", _audio(b))[:3]
+    name = "DBS-BSRNN-DnR"
+    model = _model(models_dir, name)
+    both = runtime.separate_audio(model, name, _audio([a, b]))[:3]
+    one = runtime.separate_audio(model, name, _audio(a))[:3]
+    two = runtime.separate_audio(model, name, _audio(b))[:3]
     for s in range(3):
         assert torch.equal(both[s]["waveform"][0], one[s]["waveform"][0]) and torch.equal(both[s]["waveform"][1], two[s]["waveform"][0])
 
@@ -75,23 +90,24 @@ def test_other_rates_are_resampled_with_comfyuis_resampler(comfy_dir, models_dir
     import comfy.audio
 
     x = audio.soundtrack(2.0, rate=48000, seed=5)
-    model = _model(models_dir)
-    music, _, _, report = runtime.separate_audio(model, "DBS-TIGER-DnR", _audio(x, 48000))
+    name = "DBS-BSRNN-DnR"
+    model = _model(models_dir, name)
+    music, _, _, report = runtime.separate_audio(model, name, _audio(x, 48000))
     resampled = comfy.audio.resample(torch.from_numpy(x.mean(1)), 48000, 44100)
-    direct = runtime.separate_audio(model, "DBS-TIGER-DnR", {"waveform": resampled.view(1, 1, -1), "sample_rate": 44100})[0]
+    direct = runtime.separate_audio(model, name, {"waveform": resampled.view(1, 1, -1), "sample_rate": 44100})[0]
     assert report["resampled_to_44100"] and music["sample_rate"] == 44100 and torch.equal(music["waveform"], direct["waveform"])
-    back, _, _, report = runtime.separate_audio(model, "DBS-TIGER-DnR", _audio(x, 48000), output_rate="input")
+    back, _, _, report = runtime.separate_audio(model, name, _audio(x, 48000), output_rate="input")
     assert back["sample_rate"] == 48000 and back["waveform"].shape[-1] == x.shape[0] and report["output_sample_rate"] == 48000
 
 
 @pytest.mark.parametrize("name", NAMES)
 @pytest.mark.parametrize("seconds", [1.0, 4.5, 7.3])
-def test_progress_counts_every_model_call(models_dir, name, seconds):
+def test_progress_counts_every_model_call(name, seconds):
     x = audio.soundtrack(seconds, seed=6)
     calls = []
     for channels in runtime.CHANNEL_MODES:
         calls.clear()
-        report = runtime.separate_audio(_model(models_dir, name), name, _audio(x), channels, progress=calls.append)[3]
+        report = runtime.separate_audio(_ThreeThirds(), name, _audio(x), channels, progress=calls.append)[3]
         total = runtime.total_windows(name, _audio(x), channels)
         assert calls == list(range(1, total + 1)) and report["windows"] == total
     chunk, hop = runtime.window_samples(name)

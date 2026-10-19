@@ -101,9 +101,10 @@ def test_a_48khz_file_is_resampled_in_and_back_out(comfy_nodes):
 
     sound = _load_audio(comfy_nodes, "soundtrack_48k.wav")
     assert sound["sample_rate"] == 48000
-    music, _, speech, report = _separate(comfy_nodes, rate="input", sound=sound)
+    name = "DBS-BSRNN-DnR"  # one unpadded window for 2.5 s (DBS-TIGER pads to 6 s); the resampling around it is the same
+    music, _, speech, report = _separate(comfy_nodes, name, rate="input", sound=sound)
     assert music["sample_rate"] == 48000 and music["waveform"].shape == (1, 1, sound["waveform"].shape[-1])
-    at_model_rate = _separate(comfy_nodes, sound=sound)[2]
+    at_model_rate = _separate(comfy_nodes, name, sound=sound)[2]
     assert at_model_rate["sample_rate"] == 44100
     assert torch.equal(speech["waveform"], comfy.audio.resample(at_model_rate["waveform"], 44100, 48000))
     assert json.loads(report)["resampled_to_44100"] is True
