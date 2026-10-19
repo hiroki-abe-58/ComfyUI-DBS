@@ -1,0 +1,11 @@
+{
+  "1": {"class_type": "LoadVideo", "inputs": {"file": "clip.mp4"}},
+  "2": {"class_type": "GetVideoComponents", "inputs": {"video": ["1", 0]}},
+  "3": {"class_type": "DBSLoader", "inputs": {"model": "DBS-TIGER-DnR", "device": "auto"}},
+  "4": {"class_type": "DBSSeparate", "inputs": {"model": ["3", 0], "audio": ["2", 1], "channels": "each channel", "output_sample_rate": "input"}},
+  "5": {"class_type": "AudioMerge", "inputs": {"audio1": ["4", 0], "audio2": ["4", 1], "merge_method": "add"}},
+  "6": {"class_type": "CreateVideo", "inputs": {"images": ["2", 0], "fps": ["2", 2], "audio": ["5", 0]}},
+  "7": {"class_type": "SaveVideo", "inputs": {"video": ["6", 0], "filename_prefix": "dbs/no_dialogue", "format": "auto", "codec": "auto"}},
+  "8": {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["4", 2], "filename_prefix": "dbs/dialogue", "format": "flac"}},
+  "9": {"class_type": "PreviewAny", "inputs": {"source": ["4", 3]}}
+}

@@ -1,0 +1,9 @@
+{
+  "1": {"class_type": "LoadAudio", "inputs": {"audio": "soundtrack.wav"}},
+  "2": {"class_type": "DBSLoader", "inputs": {"model": "DBS-TIGER-DnR", "device": "auto"}},
+  "3": {"class_type": "DBSSeparate", "inputs": {"model": ["2", 0], "audio": ["1", 0], "channels": "mono", "output_sample_rate": "44100"}},
+  "4": {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["3", 0], "filename_prefix": "dbs/music", "format": "flac"}},
+  "5": {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["3", 1], "filename_prefix": "dbs/sfx", "format": "flac"}},
+  "6": {"class_type": "SaveAudioAdvanced", "inputs": {"audio": ["3", 2], "filename_prefix": "dbs/speech", "format": "flac"}},
+  "7": {"class_type": "PreviewAny", "inputs": {"source": ["3", 3]}}
+}

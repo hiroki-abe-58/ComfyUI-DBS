@@ -1,0 +1,26 @@
+[project]
+name = "dbs-soundtrack-separation"
+description = "Dynamic Band Splitting (DBS) for ComfyUI: separate a soundtrack into music, sound effects and speech with the official DnR v2 models (DBS-TIGER 1.0M / DBS-BSRNN 4.7M parameters; CPU or CUDA). Same output as the official package, bit for bit on the CPU. Remove or keep the dialogue of a video."
+version = "0.1.0"
+license = { file = "LICENSE" }
+requires-python = ">=3.10"
+dependencies = ["einops>=0.7", "safetensors>=0.4"]
+
+[project.urls]
+Repository = "https://github.com/hiroki-abe-58/ComfyUI-DBS"
+
+[tool.comfy]
+PublisherId = "hiroki-abe-58"
+DisplayName = "DBS Soundtrack Separation for ComfyUI"
+Icon = ""
+
+[tool.ruff]
+line-length = 180
+target-version = "py310"
+extend-exclude = ["dbs_comfy/vendor/dbs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

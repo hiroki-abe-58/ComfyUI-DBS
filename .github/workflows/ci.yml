@@ -1,0 +1,111 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# CPU only, with the real models: they are small (23 MB for both) and run on the CPU. tools/download_model.py fetches them at the
+# pinned revisions and checks their SHA-256. The official package is imported from the upstream checkout at the pinned commit to
+# compare the pack with it in the same process; the tests use synthetic audio.
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        comfyui: ["v0.38.0"]  # the ComfyUI release the pack was verified with
+        os: [ubuntu-24.04, windows-latest]
+        python: ["3.12"]
+        torch: ["2.14.1"]
+        torchvision: ["0.29.1"]
+        include:
+          - os: ubuntu-24.04
+            comfyui: "v0.38.0"
+            python: "3.10"
+            torch: "2.8.0"
+            torchvision: "0.23.0"
+          # the current ComfyUI release as well
+          - os: ubuntu-24.04
+            python: "3.12"
+            torch: "2.14.1"
+            torchvision: "0.29.1"
+            comfyui: "v0.42.1"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: pwsh
+    env:
+      UPSTREAM_COMMIT: ff526463a58ee0278e7bd05c4b8bce112b743e34
+      GIT_LFS_SKIP_SMUDGE: "1"  # the upstream repository keeps project-page videos in LFS; none are needed
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: ComfyUI-DBS
+          persist-credentials: false
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: ComfyUI and upstream checkouts (pinned)
+        run: |
+          git -c core.autocrlf=false clone --quiet --depth 1 --branch "${{ matrix.comfyui }}" https://github.com/Comfy-Org/ComfyUI.git refs/ComfyUI
+          $pinned = @{ 'v0.38.0' = '6b747c0428c343e1417219641db93a4fb7cb69ae'; 'v0.42.1' = '63be2f9b82ad0dac88a7ceaa28a9cf3154125a18' }["${{ matrix.comfyui }}"]
+          if (-not $pinned -or (git -C refs/ComfyUI rev-parse HEAD) -ne $pinned) { throw "ComfyUI commit mismatch" }
+          git -c core.autocrlf=false clone --quiet --filter=blob:none https://github.com/JusperLee/Dynamic-Band-Splitting.git refs/Dynamic-Band-Splitting
+          git -C refs/Dynamic-Band-Splitting -c core.autocrlf=false checkout --quiet $env:UPSTREAM_COMMIT
+          if ((git -C refs/Dynamic-Band-Splitting rev-parse HEAD) -ne $env:UPSTREAM_COMMIT) { throw "upstream commit mismatch" }
+
+      - name: Install (CPU)
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true   # a failing pip must fail the step
+          python -m pip install --upgrade pip
+          # CPU torch first: on Linux ComfyUI's unpinned `torch` requirement would otherwise pull the CUDA build and its libraries
+          pip install torch==${{ matrix.torch }} torchvision==${{ matrix.torchvision }} --index-url https://download.pytorch.org/whl/cpu
+          # rotary-embedding-torch and huggingface_hub: only for importing the official package in the comparison tests
+          pip install -r refs/ComfyUI/requirements.txt -r ComfyUI-DBS/requirements.txt pytest ruff "soundfile>=0.12" rotary-embedding-torch==0.9.1 huggingface_hub
+          pip list
+
+      - name: Model files (pinned revisions, SHA-256 checked)
+        run: |
+          $ErrorActionPreference = "Stop"
+          $PSNativeCommandUseErrorActionPreference = $true
+          python ComfyUI-DBS/tools/download_model.py --models-dir models/dbs
+
+      - name: Lint
+        run: ruff check --no-cache ComfyUI-DBS
+
+      - name: Vendored code equals the pinned upstream commit
+        run: python ComfyUI-DBS/scripts/vendor_sync.py --upstream refs/Dynamic-Band-Splitting --check
+
+      - name: No absolute local paths in the repository
+        run: |
+          $files = git -C ComfyUI-DBS ls-files | Where-Object { $_ -notmatch '\.(png|jpg|webp|gif)$' } | ForEach-Object { Join-Path ComfyUI-DBS $_ }
+          $hits = $files | Select-String -Pattern '[A-Za-z]:\\{1,2}[A-Za-z0-9_.-]+\\|/home/[a-z]+/|/Users/[A-Za-z]+/'
+          if ($hits) { $hits | ForEach-Object { "$($_.Path):$($_.LineNumber)" }; throw "absolute local path found" }
+
+      - name: Tests (references required, nothing may be skipped)
+        env:
+          DBS_COMFYUI_DIR: ${{ github.workspace }}/refs/ComfyUI
+          DBS_MODELS_DIR: ${{ github.workspace }}/models/dbs
+          DBS_UPSTREAM_DIR: ${{ github.workspace }}/refs/Dynamic-Band-Splitting
+          DBS_REQUIRE_REFERENCES: "1"
+        run: |
+          Set-Location ComfyUI-DBS
+          python -m pytest tests -q -rs -p no:cacheprovider -W ignore::DeprecationWarning -W ignore::FutureWarning
+
+      - name: Real ComfyUI queue on CPU (real models)
+        run: |
+          python ComfyUI-DBS/scripts/ci_queue_check.py --comfyui refs/ComfyUI --models-dir models/dbs --upstream refs/Dynamic-Band-Splitting --workdir queue-logs
+
+      - name: ComfyUI log on failure
+        if: failure()
+        run: |
+          if (Test-Path queue-logs/comfyui.log) { Get-Content queue-logs/comfyui.log -Tail 120 }

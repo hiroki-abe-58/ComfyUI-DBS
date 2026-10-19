@@ -1,0 +1,28 @@
+DBS Soundtrack Separation for ComfyUI
+Copyright (c) 2026 hiroki-abe-58. The code of this node pack (everything outside dbs_comfy/vendor) is licensed under the MIT
+License (LICENSE).
+
+This node pack is an unofficial integration. It is not affiliated with or endorsed by the Dynamic Band Splitting authors or by
+Comfy Org.
+
+Third-party code included in this repository
+---------------------------------------------
+
+dbs_comfy/vendor/dbs
+    From https://github.com/JusperLee/Dynamic-Band-Splitting, commit ff526463a58ee0278e7bd05c4b8bce112b743e34.
+    Apache License 2.0 (dbs_comfy/vendor/LICENSE). Copied files are unchanged; four small files (package markers and an empty Hub
+    mixin) are this pack's own and are listed in dbs_comfy/vendor/UPSTREAM.md.
+    Parts of the upstream code are adapted from MIT-licensed projects (BS-RoFormer by Phil Wang, Music-Source-Separation-Training
+    by Roman Solovyev (ZFTurbo), TIGER / Look2Hear by Kai Li); their notices are in dbs_comfy/vendor/THIRD_PARTY.md.
+
+Models (not included)
+---------------------
+No model weights are included or downloaded by the nodes. tools/download_model.py fetches, when you run it:
+- JusperLee/DBS-TIGER-DnR and JusperLee/DBS-BSRNN-DnR (model cards: Apache-2.0): config.json, model.safetensors, README.md.
+  Both were trained on the DnR v2 dataset (Divide and Remaster, CC BY 4.0; mixtures of LibriSpeech, Free Music Archive and
+  FSD50K audio).
+
+Documentation image
+-------------------
+docs/images/stems.png shows an excerpt of "Tears of Steel" (CC BY 3.0, (c) Blender Foundation, mango.blender.org) and this pack's
+separation of it.
