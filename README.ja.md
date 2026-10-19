@@ -48,6 +48,10 @@ Windows 11、ComfyUI v0.38.0、RTX 5090 と CPU で確認しました。詳細�
 - **実際の ComfyUI キュー**（CPU と RTX 5090）
   - Load Audio → DBS → Save Audio（FLAC）の出力は、公式の値と 16 ビットの丸めの範囲（半ステップ以内）で一致しました。
   - セリフ除去のワークフロー（動画版を含む）もキュー経由で動きました。
+- **クリーンインストール**
+  - 新しい ComfyUI v0.38.0 と新しい Python 3.12 環境に、このリポジトリを `git clone` しました。
+  - `pip install -r requirements.txt` で追加されたパッケージはありません（`einops` と `safetensors` は ComfyUI に含まれています）。
+  - `tools/download_model.py` でモデルをダウンロードし（SHA-256 確認済み）、インストールしたパックで実キュー確認が通りました。
 - **CI**（GitHub Actions、Ubuntu と Windows）。次を ComfyUI v0.38.0 と v0.42.1 で確認しています。
   - 実モデルを CPU で動かし、合成音声で公式パッケージと同一プロセス内で比較
   - 同梱コードが固定した上流コミットとバイト単位で同じこと

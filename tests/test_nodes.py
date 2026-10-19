@@ -90,7 +90,9 @@ def test_node_output_equals_the_runtime_on_the_loaded_file(comfy_nodes, models_d
         assert ours["sample_rate"] == 44100 and torch.equal(ours["waveform"], theirs["waveform"])
     parsed = json.loads(report)
     assert parsed["model"] == name and parsed["device"] == "cpu" and parsed["signals_per_item"] == (1 if channels == "mono" else 2)
-    x, _ = sf.read(Path(__import__("folder_paths").get_input_directory()) / "soundtrack.wav", dtype="float32", always_2d=True)
+    import folder_paths
+
+    x, _ = sf.read(Path(folder_paths.get_input_directory()) / "soundtrack.wav", dtype="float32", always_2d=True)
     assert np.array_equal(sound["waveform"][0].numpy(), x.T)  # Load Audio gives the file's samples unchanged
 
 

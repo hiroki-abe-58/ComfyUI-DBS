@@ -20,7 +20,9 @@ def test_package_has_no_environment_network_or_process_code():
 def test_only_the_download_tool_knows_about_the_hub():
     text = "\n".join(p.read_text(encoding="utf-8") for p in (ROOT / "dbs_comfy").rglob("*.py") if "__pycache__" not in p.parts)
     assert not re.search(r"^\s*(from|import)\s+huggingface_hub|hf_hub_download|snapshot_download", text, re.M)
-    assert not hasattr(__import__("dbs_comfy.vendor.dbs.hub", fromlist=["x"]).PyTorchModelHubMixin, "from_pretrained")
+    from dbs_comfy.vendor.dbs import hub
+
+    assert not hasattr(hub.PyTorchModelHubMixin, "from_pretrained")
     assert "hf_hub_download" in (ROOT / "tools" / "download_model.py").read_text(encoding="utf-8")
 
 

@@ -77,6 +77,22 @@ DBS-BSRNN it is within 1.5 to 2.5 steps (about 80 dB SNR), because ComfyUI's `--
 `torch.backends.cudnn.deterministic`, which the BSRNN's LSTM layers need for identical results. Without `--deterministic`: 69 to
 80 dB SNR against the official default-mode outputs, as expected from the run-to-run differences above.
 
+## Clean install
+
+`git clone` of this repository from GitHub into a fresh ComfyUI v0.38.0 with a fresh Python 3.12.13 environment (torch
+2.14.1+cu130 and ComfyUI's requirements); `pip install -r requirements.txt` added no package (`einops` 0.8.2 and `safetensors`
+0.8.0 come with ComfyUI's requirements); `tools/download_model.py` downloaded both models from Hugging Face and verified all six
+files; `scripts/ci_queue_check.py --keep-pack` against the installed pack passed with the same results as above (the check itself
+needs `soundfile`, and `rotary-embedding-torch` for importing the official package; the pack needs neither).
+
+## CI
+
+GitHub Actions, CPU, the real models (fetched and SHA-256 checked by `tools/download_model.py`) and the upstream checkout at the
+pinned commit, four jobs: ComfyUI v0.38.0 on Ubuntu 24.04 and Windows (Python 3.12, torch 2.14.1), on Ubuntu with Python 3.10 /
+torch 2.8.0, and ComfyUI v0.42.1 on Ubuntu (Python 3.12, torch 2.14.1). Each job checks the vendored code against the upstream
+commit (`scripts/vendor_sync.py --check`), runs the 47 tests with every reference required (none may be skipped; the pack is
+compared with the official package in the same process) and the real-queue check. All four passed on the first commit.
+
 ## Speed and memory
 
 | Model | Device | Input | Time | Speed | Peak GPU memory |

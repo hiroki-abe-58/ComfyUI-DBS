@@ -55,6 +55,9 @@ Windows 11, ComfyUI v0.38.0, RTX 5090 and CPU; details and raw numbers in [docs/
   mean and each channel).
 - **Real ComfyUI queue** (CPU and RTX 5090): Load Audio → DBS → Save Audio (FLAC) gives the official stems to within half a
   16-bit step (the FLAC rounding); the remove-dialogue workflows, including the video one, run through the queue.
+- **Clean install:** fresh ComfyUI v0.38.0, fresh Python 3.12 environment, `git clone` of this repository, `pip install -r
+  requirements.txt` (nothing new: ComfyUI already brings `einops` and `safetensors`), the models downloaded with
+  `tools/download_model.py` (SHA-256 verified), and the real-queue check against the installed pack.
 - **CI** (GitHub Actions; Ubuntu and Windows): the real models on the CPU on synthetic audio, the pack compared with the official
   package in the same process for both models, the vendored code compared with the pinned upstream commit, ComfyUI's own
   validation of the workflows, and a real ComfyUI queue; ComfyUI v0.38.0 and v0.42.1.
@@ -110,7 +113,7 @@ then uses the CPU).
 ## Development
 
 ```
-python -m pip install pytest ruff rotary-embedding-torch huggingface_hub
+python -m pip install pytest ruff soundfile rotary-embedding-torch huggingface_hub
 python tools/download_model.py --models-dir <dir>/dbs
 git clone https://github.com/JusperLee/Dynamic-Band-Splitting <upstream> && git -C <upstream> checkout ff526463a58ee0278e7bd05c4b8bce112b743e34
 DBS_MODELS_DIR=<dir>/dbs DBS_UPSTREAM_DIR=<upstream> DBS_COMFYUI_DIR=<ComfyUI checkout> python -m pytest tests
@@ -119,4 +122,4 @@ python scripts/vendor_sync.py --upstream <upstream> --check                     
 ```
 
 The official package is only needed for the comparison tests (`rotary-embedding-torch` and `huggingface_hub` are what its imports
-need); the node pack itself does not import it.
+need), and `soundfile` only for the tests and the check script; the node pack itself imports neither.
